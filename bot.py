@@ -4,6 +4,20 @@ from discord.ext import commands
 from dotenv import load_dotenv
 from auth import servidor_autorizado, autorizar_servidor, desautorizar_servidor
 
+
+
+
+
+TOKEN = os.getenv("DISCORD_TOKEN")
+HENRIK_KEY = os.getenv("HENRIK_KEY")
+
+# Configuração básica do bot
+intents = discord.Intents.default()
+intents.message_content = True
+intents.members = True
+
+bot = commands.Bot(command_prefix="!", intents=intents)
+
 SEU_ID = "1511753229480755356"  # seu ID do Discord
 
 @bot.command()
@@ -30,18 +44,6 @@ async def verificar_autorizacao(ctx):
         await ctx.send("⚠️ Este servidor não tem acesso ao ValBot. Entre em contato: discord.gg/arcaoficial")
         return False
     return True
-
-
-
-TOKEN = os.getenv("DISCORD_TOKEN")
-HENRIK_KEY = os.getenv("HENRIK_KEY")
-
-# Configuração básica do bot
-intents = discord.Intents.default()
-intents.message_content = True
-intents.members = True
-
-bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Quando o bot ligar
 @bot.event
