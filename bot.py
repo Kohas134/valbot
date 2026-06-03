@@ -40,6 +40,10 @@ async def desautorizar(ctx, servidor_id: str):
 
 @bot.check
 async def verificar_autorizacao(ctx):
+    # Permite comandos de autorização sem verificar
+    if ctx.command and ctx.command.name in ["autorizar", "desautorizar", "ping"]:
+        return True
+    
     if not servidor_autorizado(ctx.guild.id):
         await ctx.send("⚠️ Este servidor não tem acesso ao ValBot. Entre em contato: discord.gg/arcaoficial")
         return False
