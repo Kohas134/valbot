@@ -3,8 +3,8 @@ import os
 from discord.ext import commands
 from dotenv import load_dotenv
 
-TOKEN = "MTUxMTU1NzEwODM1MTUwMDQwOQ.GyJ573.ADFVQbPPkWnz2jDZujr1p5IcN5YMEHv81xVGM0"
-HENRIK_KEY = "MTUxMTU1NzEwODM1MTUwMDQwOQ.Gv5L30.a1Kg-vMg8ylvBgEBa3nRZdQrnbzbBg40gU9hWk"
+TOKEN = os.getenv("DISCORD_TOKEN")
+HENRIK_KEY = os.getenv("HENRIK_KEY")
 
 # Configuração básica do bot
 intents = discord.Intents.default()
