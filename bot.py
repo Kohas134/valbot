@@ -2,6 +2,36 @@ import discord
 import os
 from discord.ext import commands
 from dotenv import load_dotenv
+from auth import servidor_autorizado, autorizar_servidor, desautorizar_servidor
+
+SEU_ID = "1511753229480755356"  # seu ID do Discord
+
+@bot.command()
+async def autorizar(ctx, servidor_id: str):
+    if str(ctx.author.id) != SEU_ID:
+        return
+    if autorizar_servidor(servidor_id):
+        await ctx.send(f"✅ Servidor `{servidor_id}` autorizado!")
+    else:
+        await ctx.send("⚠️ Servidor já autorizado!")
+
+@bot.command()
+async def desautorizar(ctx, servidor_id: str):
+    if str(ctx.author.id) != SEU_ID:
+        return
+    if desautorizar_servidor(servidor_id):
+        await ctx.send(f"❌ Servidor `{servidor_id}` removido!")
+    else:
+        await ctx.send("⚠️ Servidor não encontrado!")
+
+@bot.check
+async def verificar_autorizacao(ctx):
+    if not servidor_autorizado(ctx.guild.id):
+        await ctx.send("⚠️ Este servidor não tem acesso ao ValBot. Entre em contato: discord.gg/arcaoficial")
+        return False
+    return True
+
+
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 HENRIK_KEY = os.getenv("HENRIK_KEY")
