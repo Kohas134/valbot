@@ -12,12 +12,12 @@ SERVIDORES_GRATUITOS = [
 
 def carregar_autorizados():
     if os.path.exists(ARQUIVO_AUTH):
-        with open(ARQUIVO_AUTH, "r") as f:
+        with open(ARQUIVO_AUTH, "r", encoding="utf-8") as f:
             return json.load(f)
     return []
 
 def salvar_autorizados(lista):
-    with open(ARQUIVO_AUTH, "w") as f:
+    with open(ARQUIVO_AUTH, "w", encoding="utf-8") as f:
         json.dump(lista, f, indent=2)
 
 def autorizar_servidor(guild_id):
@@ -38,12 +38,12 @@ def desautorizar_servidor(guild_id):
 
 def carregar_testes():
     if os.path.exists(ARQUIVO_TESTES):
-        with open(ARQUIVO_TESTES, "r") as f:
+        with open(ARQUIVO_TESTES, "r", encoding="utf-8") as f:
             return json.load(f)
     return {}
 
 def salvar_testes(dados):
-    with open(ARQUIVO_TESTES, "w") as f:
+    with open(ARQUIVO_TESTES, "w", encoding="utf-8") as f:
         json.dump(dados, f, indent=2)
 
 def status_servidor(guild_id):

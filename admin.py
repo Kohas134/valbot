@@ -40,7 +40,7 @@ def carregar_autorizados():
 
 def salvar_autorizados(lista):
     caminho = os.path.join(BASE_DIR, ARQUIVO_AUTH)
-    with open(caminho, "w") as f:
+    with open(caminho, "w", encoding="utf-8") as f:
         json.dump(lista, f, indent=2)
 
 
@@ -109,14 +109,14 @@ def listar_servidores():
 def carregar_testes():
     caminho = os.path.join(BASE_DIR, ARQUIVO_TESTES)
     if os.path.exists(caminho):
-        with open(caminho, "r") as f:
+        with open(caminho, "r", encoding="utf-8") as f:
             return json.load(f)
     return {}
 
 
 def salvar_testes(dados):
     caminho = os.path.join(BASE_DIR, ARQUIVO_TESTES)
-    with open(caminho, "w") as f:
+    with open(caminho, "w", encoding="utf-8") as f:
         json.dump(dados, f, indent=2)
 
 
