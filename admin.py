@@ -23,25 +23,22 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 def carregar_autorizados():
     caminho = os.path.join(BASE_DIR, ARQUIVO_AUTH)
     if not os.path.exists(caminho):
-        salvar_autorizados([])
         return []
     try:
-        with open(caminho, "r", encoding="utf-8") as f:
+        with open(caminho, "r", encoding="utf-8-sig") as f:
             conteudo = f.read().strip()
             if not conteudo:
-                salvar_autorizados([])
                 return []
             return json.loads(conteudo)
-    except json.JSONDecodeError:
-        print("⚠️  autorizados.json corrompido — recriando vazio.")
-        salvar_autorizados([])
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        print("⚠️  autorizados.json corrompido — ignorando e recriando vazio.")
         return []
 
 
 def salvar_autorizados(lista):
     caminho = os.path.join(BASE_DIR, ARQUIVO_AUTH)
-    with open(caminho, "w", encoding="utf-8") as f:
-        json.dump(lista, f, indent=2)
+    with open(caminho, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(lista, f, indent=2, ensure_ascii=False)
 
 
 def git_push_autorizados():
