@@ -13,7 +13,7 @@ from perguntas import perguntas_todas
 load_dotenv()
 
 TOKEN = os.getenv("DISCORD_TOKEN")
-HENRIK_KEY = os.getenv("HENRIK_KEY") or "HDEV-25f4cd0a-3f20-46e4-ad4b-34538f3c492b"
+HENRIK_KEY = os.getenv("HENRIK_KEY", "")
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -466,7 +466,7 @@ async def top(ctx):
     if not dados:
         await ctx.send("Ninguém tem XP ainda!")
         return
-    ranking = sorted(dados.items(), key=lambda x: x[1]["xp"], reverse=True)[:5]
+    ranking = sorted(dados.items(), key=lambda x: x[1].get("xp", 0), reverse=True)[:5]
     embed = discord.Embed(title="🏆 Top 5 do Servidor", color=COR_PADRAO)
     medalhas = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"]
     for i, (user_id, info) in enumerate(ranking):
@@ -477,7 +477,7 @@ async def top(ctx):
             nome = f"User {user_id}"
         embed.add_field(
             name=f"{medalhas[i]} {nome}",
-            value=f"Nível **{info['nivel']}** • {info['xp']} XP",
+            value=f"Nível **{info.get('nivel', 1)}** • {info.get('xp', 0)} XP",
             inline=False
         )
     embed.set_footer(text=f"ValBot v{VERSAO} • Sistema de Ranking")
@@ -488,7 +488,16 @@ async def top(ctx):
 # ============================================================
 @bot.command()
 @requer_acesso()
-async def sorteio(ctx, tempo: int, *, premio: str):
+async def sorteio(ctx, tempo: int = None, *, premio: str = None):
+    if tempo is None or premio is None:
+        await ctx.send("❌ Use: `!sorteio [segundos] [prêmio]` — ex: `!sorteio 60 Nitro`")
+        return
+    if tempo < 5:
+        await ctx.send("⚠️ Tempo mínimo é 5 segundos.")
+        return
+    if tempo > 3600:
+        await ctx.send("⚠️ Tempo máximo é 3600 segundos (1 hora).")
+        return
     embed = discord.Embed(
         title="🎁 SORTEIO!",
         description=f"**Prêmio:** {premio}\n\nReaja com 🎉 para participar!\nTempo: **{tempo} segundos**",
@@ -516,6 +525,11 @@ async def sorteio(ctx, tempo: int, *, premio: str):
     )
     await ctx.send(embed=embed_resultado)
 
+@sorteio.error
+async def sorteio_error(ctx, error):
+    if isinstance(error, (commands.BadArgument, commands.MissingRequiredArgument)):
+        await ctx.send("❌ Use: `!sorteio [segundos] [prêmio]` — ex: `!sorteio 60 Nitro`")
+
 # ============================================================
 # HENRIK API – !stats e !historico
 # ============================================================
@@ -541,10 +555,6 @@ async def stats(ctx, *, nome: str):
         async with aiohttp.ClientSession() as session:
             url = f"https://api.henrikdev.xyz/valorant/v2/account/{player_name}/{player_tag}"
             status, perfil = await henrik_get(session, url)
-
-            print(f"[DEBUG !stats] URL: {url}")
-            print(f"[DEBUG !stats] Status: {status}")
-            print(f"[DEBUG !stats] Resposta: {perfil}")
 
             if status != 200:
                 await msg.edit(content=f"❌ Erro {status}: `{perfil.get('errors', perfil.get('message', 'sem detalhe'))}`")
@@ -1048,9 +1058,10 @@ async def missao(ctx):
         perfis.setdefault(uid, {})[chave] = True
         salvar_perfis(perfis)
         dados = carregar_xp()
-        if uid in dados:
-            dados[uid]["xp"] += m["xp"]
-            salvar_xp(dados)
+        if uid not in dados:
+            dados[uid] = {"xp": 0, "nivel": 1}
+        dados[uid]["xp"] += m["xp"]
+        salvar_xp(dados)
         embed.set_footer(text=f"+{m['xp']} XP recebido! • ValBot v{VERSAO}")
     else:
         embed.set_footer(text=f"ValBot v{VERSAO} • Missão diária")
