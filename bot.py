@@ -168,6 +168,7 @@ async def verificar_testes_expirando():
 async def on_ready():
     await bot.change_presence(activity=discord.Game(name=f"!ajuda | ValBot v{VERSAO}"))
     print(f"Bot ligado! Logado como {bot.user} | v{VERSAO}")
+    print(f"Henrik Key carregada: {HENRIK_KEY[:15]}...")
     if not verificar_testes_expirando.is_running():
         verificar_testes_expirando.start()
 
@@ -521,7 +522,12 @@ async def sorteio(ctx, tempo: int, *, premio: str):
 async def henrik_get(session, url):
     headers = {"Authorization": HENRIK_KEY}
     async with session.get(url, headers=headers) as resp:
-        return resp.status, await resp.json()
+        try:
+            data = await resp.json(content_type=None)
+        except Exception as e:
+            print(f"[HENRIK] Falha ao parsear JSON ({url}): {e}")
+            data = {}
+        return resp.status, data
 
 @bot.command()
 @requer_acesso()
@@ -560,6 +566,7 @@ async def stats(ctx, *, nome: str):
         await msg.delete()
         await ctx.send(embed=embed)
     except Exception as e:
+        print(f"[ERRO !stats] {type(e).__name__}: {e}")
         await msg.edit(content=f"❌ Erro ao buscar stats. Tente novamente.")
 
 @bot.command()
@@ -616,6 +623,7 @@ async def historico(ctx, *, nome: str):
         await msg.delete()
         await ctx.send(embed=embed)
     except Exception as e:
+        print(f"[ERRO !historico] {type(e).__name__}: {e}")
         await msg.edit(content="❌ Erro ao buscar histórico. Tente novamente.")
 
 # ============================================================
@@ -711,7 +719,8 @@ async def perfil(ctx, *, nome: str = None):
         await msg.delete()
         await ctx.send(embed=embed)
     except Exception as e:
-        await msg.edit(content=f"❌ Erro ao montar perfil: {e}")
+        print(f"[ERRO !perfil] {type(e).__name__}: {e}")
+        await msg.edit(content=f"❌ Erro ao montar perfil. Tente novamente.")
 
 @bot.command()
 @requer_acesso()
@@ -938,10 +947,10 @@ async def duelo(ctx, oponente: discord.Member):
         def check_q(m):
             return m.author.id in (ctx.author.id, oponente.id) and m.channel == ctx.channel
         try:
-            tempo_fim = asyncio.get_event_loop().time() + 20
+            tempo_fim = asyncio.get_running_loop().time() + 20
             vencedor_rodada = None
             while True:
-                restante = tempo_fim - asyncio.get_event_loop().time()
+                restante = tempo_fim - asyncio.get_running_loop().time()
                 if restante <= 0:
                     break
                 resp = await bot.wait_for("message", check=check_q, timeout=restante)
