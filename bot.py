@@ -539,9 +539,15 @@ async def stats(ctx, *, nome: str):
     msg = await ctx.send("🔍 Buscando stats...")
     try:
         async with aiohttp.ClientSession() as session:
-            status, perfil = await henrik_get(session, f"https://api.henrikdev.xyz/valorant/v2/account/{player_name}/{player_tag}")
+            url = f"https://api.henrikdev.xyz/valorant/v2/account/{player_name}/{player_tag}"
+            status, perfil = await henrik_get(session, url)
+
+            print(f"[DEBUG !stats] URL: {url}")
+            print(f"[DEBUG !stats] Status: {status}")
+            print(f"[DEBUG !stats] Resposta: {perfil}")
+
             if status != 200:
-                await msg.edit(content="❌ Jogador não encontrado! Verifique o nome e a TAG.")
+                await msg.edit(content=f"❌ Erro {status}: `{perfil.get('errors', perfil.get('message', 'sem detalhe'))}`")
                 return
             regiao = perfil["data"]["region"]
             _, rank_data = await henrik_get(session, f"https://api.henrikdev.xyz/valorant/v3/mmr/{regiao}/pc/{player_name}/{player_tag}")
