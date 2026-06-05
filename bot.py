@@ -5,9 +5,9 @@ import random
 import asyncio
 import aiohttp
 from datetime import datetime, timedelta
-from discord.ext import commands
+from discord.ext import commands, tasks
 from dotenv import load_dotenv
-from auth import servidor_autorizado
+from auth import servidor_autorizado, status_servidor, carregar_autorizados, carregar_testes, salvar_testes
 from perguntas import perguntas_todas
 
 load_dotenv()
@@ -116,21 +116,60 @@ def barra_progresso(atual, total, tamanho=15):
     return "▰" * cheios + "▱" * vazios
 
 # ============================================================
-# AUTORIZAÇÃO E COMANDOS BÁSICOS
+# AUTORIZAÇÃO – decorator individual por comando
 # ============================================================
-@bot.check
-async def verificar_autorizacao(ctx):
-    if ctx.command and ctx.command.name in ["ping"]:
-        return True
-    if not servidor_autorizado(ctx.guild.id):
-        await ctx.send("⚠️ Este servidor não tem acesso ao ValBot. Entre em contato: discord.gg/arcaoficial")
+SERVIDORES_GRATUITOS_BOT = ["1511754478913720410"]  # Arca Oficial
+
+def requer_acesso():
+    async def predicate(ctx):
+        autorizados = carregar_autorizados()
+        if str(ctx.guild.id) in SERVIDORES_GRATUITOS_BOT or str(ctx.guild.id) in autorizados:
+            return True
+        st = status_servidor(ctx.guild.id)
+        if st == "expirado":
+            await ctx.send("❌ Seu período de teste de 3 dias encerrou. Para continuar usando o ValBot acesse: https://discord.gg/VKHG6MFh")
+        else:
+            await ctx.send("⚠️ Este servidor não tem acesso ao ValBot. Entre em contato: https://discord.gg/VKHG6MFh")
         return False
-    return True
+    return commands.check(predicate)
+
+@tasks.loop(minutes=60)
+async def verificar_testes_expirando():
+    """A cada hora verifica se algum servidor em teste está a menos de 24h do fim."""
+    from datetime import datetime, timezone
+    testes = carregar_testes()
+    alterado = False
+    for sid, info in testes.items():
+        if info.get("aviso_enviado"):
+            continue
+        inicio = datetime.fromisoformat(info["inicio"])
+        if inicio.tzinfo is None:
+            inicio = inicio.replace(tzinfo=timezone.utc)
+        horas = (datetime.now(timezone.utc) - inicio).total_seconds() / 3600
+        if horas >= 48:  # passaram 48h → faltam menos de 24h
+            guild = bot.get_guild(int(sid))
+            if guild:
+                canal = next(
+                    (c for c in guild.text_channels
+                     if c.permissions_for(guild.me).send_messages),
+                    None
+                )
+                if canal:
+                    await canal.send(
+                        "⏰ Seu período de teste do ValBot está acabando! Faltam menos de 24h. "
+                        "Para continuar com acesso entre em contato: https://discord.gg/VKHG6MFh"
+                    )
+            testes[sid]["aviso_enviado"] = True
+            alterado = True
+    if alterado:
+        salvar_testes(testes)
 
 @bot.event
 async def on_ready():
     await bot.change_presence(activity=discord.Game(name=f"!ajuda | ValBot v{VERSAO}"))
     print(f"Bot ligado! Logado como {bot.user} | v{VERSAO}")
+    if not verificar_testes_expirando.is_running():
+        verificar_testes_expirando.start()
 
 @bot.command()
 async def ping(ctx):
@@ -246,9 +285,13 @@ async def verificar_conquistas(ctx, uid):
 # ============================================================
 @bot.event
 async def on_message(message):
-    if message.author.bot or not message.guild:
-        if message.guild is None:
-            return
+    if message.author.bot or message.guild is None:
+        return
+
+    # Servidores não autorizados: processa comandos (para o @bot.check rejeitar
+    # com a mensagem correta) mas não acumula XP nem stats
+    if not servidor_autorizado(message.guild.id):
+        await bot.process_commands(message)
         return
 
     uid = str(message.author.id)
@@ -306,6 +349,7 @@ perguntas_usadas = {}
 quiz_ativo = {}  # guild_id -> True/False
 
 @bot.command()
+@requer_acesso()
 async def quiz(ctx):
     gid = str(ctx.guild.id)
     if quiz_ativo.get(gid):
@@ -376,6 +420,7 @@ async def quiz(ctx):
         quiz_ativo[gid] = False
 
 @bot.command()
+@requer_acesso()
 async def stopquiz(ctx):
     gid = str(ctx.guild.id)
     if quiz_ativo.get(gid):
@@ -388,6 +433,7 @@ async def stopquiz(ctx):
 # RANK e TOP
 # ============================================================
 @bot.command()
+@requer_acesso()
 async def rank(ctx):
     dados = carregar_xp()
     uid = str(ctx.author.id)
@@ -413,6 +459,7 @@ async def rank(ctx):
     await ctx.send(embed=embed)
 
 @bot.command()
+@requer_acesso()
 async def top(ctx):
     dados = carregar_xp()
     if not dados:
@@ -439,6 +486,7 @@ async def top(ctx):
 # SORTEIO
 # ============================================================
 @bot.command()
+@requer_acesso()
 async def sorteio(ctx, tempo: int, *, premio: str):
     embed = discord.Embed(
         title="🎁 SORTEIO!",
@@ -476,6 +524,7 @@ async def henrik_get(session, url):
         return resp.status, await resp.json()
 
 @bot.command()
+@requer_acesso()
 async def stats(ctx, *, nome: str):
     if "#" not in nome:
         await ctx.send("❌ Use o formato correto: `!stats Nome#TAG`")
@@ -514,6 +563,7 @@ async def stats(ctx, *, nome: str):
         await msg.edit(content=f"❌ Erro ao buscar stats. Tente novamente.")
 
 @bot.command()
+@requer_acesso()
 async def historico(ctx, *, nome: str):
     if "#" not in nome:
         await ctx.send("❌ Use o formato correto: `!historico Nome#TAG`")
@@ -572,6 +622,7 @@ async def historico(ctx, *, nome: str):
 # PERFIL EXPANDIDO + PERSONALIZAÇÃO
 # ============================================================
 @bot.command()
+@requer_acesso()
 async def perfil(ctx, *, nome: str = None):
     if not nome or "#" not in nome:
         await ctx.send("❌ Use: `!perfil Nome#TAG`")
@@ -663,6 +714,7 @@ async def perfil(ctx, *, nome: str = None):
         await msg.edit(content=f"❌ Erro ao montar perfil: {e}")
 
 @bot.command()
+@requer_acesso()
 async def setagente(ctx, *, nome: str):
     perfis = carregar_perfis()
     uid = str(ctx.author.id)
@@ -679,6 +731,7 @@ async def setagente(ctx, *, nome: str):
     await ctx.send(embed=embed)
 
 @bot.command()
+@requer_acesso()
 async def setarma(ctx, *, nome: str):
     perfis = carregar_perfis()
     uid = str(ctx.author.id)
@@ -692,6 +745,7 @@ async def setarma(ctx, *, nome: str):
     await ctx.send(embed=embed)
 
 @bot.command()
+@requer_acesso()
 async def settitulo(ctx, *, texto: str):
     if len(texto) > 60:
         await ctx.send("⚠️ Título muito longo (máx 60 caracteres).")
@@ -711,6 +765,7 @@ async def settitulo(ctx, *, texto: str):
 # SISTEMA DE TIMES
 # ============================================================
 @bot.command()
+@requer_acesso()
 async def criartime(ctx, *, nome: str):
     times = carregar_times()
     gid = str(ctx.guild.id)
@@ -735,6 +790,7 @@ async def criartime(ctx, *, nome: str):
     await verificar_conquistas(ctx, uid)
 
 @bot.command()
+@requer_acesso()
 async def entrartime(ctx, *, nome: str):
     times = carregar_times()
     gid = str(ctx.guild.id)
@@ -753,6 +809,7 @@ async def entrartime(ctx, *, nome: str):
     await verificar_conquistas(ctx, uid)
 
 @bot.command()
+@requer_acesso()
 async def sairtime(ctx):
     times = carregar_times()
     gid = str(ctx.guild.id)
@@ -774,6 +831,7 @@ async def sairtime(ctx):
         await ctx.send("⚠️ Você não está em nenhum time.")
 
 @bot.command()
+@requer_acesso()
 async def timelist(ctx):
     times = carregar_times()
     gid = str(ctx.guild.id)
@@ -799,6 +857,7 @@ async def timelist(ctx):
     await ctx.send(embed=embed)
 
 @bot.command()
+@requer_acesso()
 async def timeinfo(ctx, *, nome: str):
     times = carregar_times()
     gid = str(ctx.guild.id)
@@ -834,6 +893,7 @@ async def timeinfo(ctx, *, nome: str):
 duelos_ativos = {}  # (gid, uid) -> True
 
 @bot.command()
+@requer_acesso()
 async def duelo(ctx, oponente: discord.Member):
     if oponente.bot or oponente.id == ctx.author.id:
         await ctx.send("⚠️ Escolha outro jogador (não bot e não você mesmo).")
@@ -936,6 +996,7 @@ MISSOES = [
 ]
 
 @bot.command()
+@requer_acesso()
 async def missao(ctx):
     uid = str(ctx.author.id)
     # Missão diária baseada no dia + uid (assim cada user tem missão fixa do dia)
@@ -981,6 +1042,7 @@ async def missao(ctx):
     await ctx.send(embed=embed)
 
 @bot.command()
+@requer_acesso()
 async def meta(ctx):
     perfis = carregar_perfis()
     gid = str(ctx.guild.id)
@@ -1065,13 +1127,14 @@ async def ajuda(ctx):
         ),
         inline=False
     )
-    embed.set_footer(text=f"ValBot por Arca • R$ 40/mês via LivePix • discord.gg/arcaoficial")
+    embed.set_footer(text=f"ValBot por Arca • R$ 40/mês via LivePix • https://discord.gg/VKHG6MFh")
     await ctx.send(embed=embed)
 
 # ============================================================
 # CONQUISTAS – comando público
 # ============================================================
 @bot.command()
+@requer_acesso()
 async def conquistas(ctx):
     uid = str(ctx.author.id)
     conq = carregar_conquistas().get(uid, [])
@@ -1091,6 +1154,7 @@ async def conquistas(ctx):
 # PATCH NOTES
 # ============================================================
 @bot.command()
+@requer_acesso()
 async def patchnotes(ctx):
     notas = carregar_patch()
     if not notas:

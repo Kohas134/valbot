@@ -1,9 +1,11 @@
 import json
 import os
+from datetime import datetime, timezone
 
 ARQUIVO_AUTH = "autorizados.json"
+ARQUIVO_TESTES = "testes.json"
 
-# Servidores com acesso gratuito permanente (nunca precisam estar no autorizados.json)
+# Servidores com acesso gratuito permanente — nunca precisam estar no autorizados.json
 SERVIDORES_GRATUITOS = [
     "1511754478913720410",  # Arca Oficial
 ]
@@ -16,12 +18,7 @@ def carregar_autorizados():
 
 def salvar_autorizados(lista):
     with open(ARQUIVO_AUTH, "w") as f:
-        json.dump(lista, f)
-
-def servidor_autorizado(guild_id):
-    if str(guild_id) in SERVIDORES_GRATUITOS:
-        return True
-    return str(guild_id) in carregar_autorizados()
+        json.dump(lista, f, indent=2)
 
 def autorizar_servidor(guild_id):
     autorizados = carregar_autorizados()
@@ -38,3 +35,37 @@ def desautorizar_servidor(guild_id):
         salvar_autorizados(autorizados)
         return True
     return False
+
+def carregar_testes():
+    if os.path.exists(ARQUIVO_TESTES):
+        with open(ARQUIVO_TESTES, "r") as f:
+            return json.load(f)
+    return {}
+
+def salvar_testes(dados):
+    with open(ARQUIVO_TESTES, "w") as f:
+        json.dump(dados, f, indent=2)
+
+def status_servidor(guild_id):
+    """
+    Retorna:
+      "autorizado" — gratuito permanente, pagante ou teste ativo
+      "expirado"   — estava em teste mas as 72h passaram
+      "negado"     — não está em nenhuma lista
+    """
+    sid = str(guild_id)
+    if sid in SERVIDORES_GRATUITOS:
+        return "autorizado"
+    if sid in carregar_autorizados():
+        return "autorizado"
+    testes = carregar_testes()
+    if sid in testes:
+        inicio = datetime.fromisoformat(testes[sid]["inicio"])
+        if inicio.tzinfo is None:
+            inicio = inicio.replace(tzinfo=timezone.utc)
+        horas = (datetime.now(timezone.utc) - inicio).total_seconds() / 3600
+        return "autorizado" if horas < 72 else "expirado"
+    return "negado"
+
+def servidor_autorizado(guild_id):
+    return status_servidor(guild_id) == "autorizado"
