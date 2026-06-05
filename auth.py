@@ -3,6 +3,11 @@ import os
 
 ARQUIVO_AUTH = "autorizados.json"
 
+# Servidores com acesso gratuito permanente (nunca precisam estar no autorizados.json)
+SERVIDORES_GRATUITOS = [
+    "1511754478913720410",  # Arca Oficial
+]
+
 def carregar_autorizados():
     if os.path.exists(ARQUIVO_AUTH):
         with open(ARQUIVO_AUTH, "r") as f:
@@ -14,6 +19,8 @@ def salvar_autorizados(lista):
         json.dump(lista, f)
 
 def servidor_autorizado(guild_id):
+    if str(guild_id) in SERVIDORES_GRATUITOS:
+        return True
     return str(guild_id) in carregar_autorizados()
 
 def autorizar_servidor(guild_id):

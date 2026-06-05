@@ -7,7 +7,7 @@ import aiohttp
 from datetime import datetime, timedelta
 from discord.ext import commands
 from dotenv import load_dotenv
-from auth import servidor_autorizado, autorizar_servidor, desautorizar_servidor
+from auth import servidor_autorizado
 from perguntas import perguntas_todas
 
 load_dotenv()
@@ -118,27 +118,9 @@ def barra_progresso(atual, total, tamanho=15):
 # ============================================================
 # AUTORIZAÇÃO E COMANDOS BÁSICOS
 # ============================================================
-@bot.command()
-async def autorizar(ctx, servidor_id: str):
-    if str(ctx.author.id) != SEU_ID:
-        return
-    if autorizar_servidor(servidor_id):
-        await ctx.send(f"✅ Servidor `{servidor_id}` autorizado!")
-    else:
-        await ctx.send("⚠️ Servidor já autorizado!")
-
-@bot.command()
-async def desautorizar(ctx, servidor_id: str):
-    if str(ctx.author.id) != SEU_ID:
-        return
-    if desautorizar_servidor(servidor_id):
-        await ctx.send(f"❌ Servidor `{servidor_id}` removido!")
-    else:
-        await ctx.send("⚠️ Servidor não encontrado!")
-
 @bot.check
 async def verificar_autorizacao(ctx):
-    if ctx.command and ctx.command.name in ["autorizar", "desautorizar", "ping"]:
+    if ctx.command and ctx.command.name in ["ping"]:
         return True
     if not servidor_autorizado(ctx.guild.id):
         await ctx.send("⚠️ Este servidor não tem acesso ao ValBot. Entre em contato: discord.gg/arcaoficial")
