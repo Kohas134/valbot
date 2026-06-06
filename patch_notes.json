@@ -1,5 +1,29 @@
 [
   {
+    "versao": "2.1",
+    "data": "2026-06-06",
+    "mudancas": [
+      "Novo comando !info com estatísticas do servidor (XP, conquistas, times)",
+      "Novo comando !rankglobal — Top 3 de todos os servidores combinados",
+      "!quiz agora mostra curiosidade temática ao errar a resposta",
+      "!rank exibe a posição #N do jogador no ranking global",
+      "!top mostra XP total acumulado e média por jogador",
+      "!conquistas agrupadas por dificuldade com barra de progresso",
+      "!duelo com embed épica e placar ao vivo no footer",
+      "!sorteio com timestamp dinâmico e embed festiva",
+      "Conquistas desbloqueadas com cor dourada e destaque visual",
+      "Level up agora usa embed em vez de texto simples",
+      "Cores exatas de rank Valorant (Iron, Bronze, Silver... Radiant)",
+      "Ícones oficiais de rank nos comandos !stats e !perfil",
+      "Footer com timestamp em todas as embeds",
+      "Sistema de assinatura mensal — acesso por 30 dias renovável",
+      "Admin: opção 0 mostra painel de urgência com tempo restante de cada servidor",
+      "Correção de todos os DeprecationWarnings (datetime.utcnow)",
+      "Sistema de logs automático em logs.txt",
+      "Handler global anti-crash — nenhuma exceção derruba o bot"
+    ]
+  },
+  {
     "versao": "2.0",
     "data": "2026-06-04",
     "mudancas": [

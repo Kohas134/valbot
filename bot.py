@@ -25,7 +25,7 @@ intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
 
 SEU_ID = "1511753229480755356"
-VERSAO = "2.0"
+VERSAO = "2.1"
 
 # ── Paleta de cores ───────────────────────────────────────────────────────────
 COR_PADRAO  = 0xFF4655   # vermelho Valorant  (erros, neutro)
