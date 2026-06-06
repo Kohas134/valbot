@@ -18,7 +18,7 @@ def carregar_autorizados():
 
 def salvar_autorizados(lista):
     with open(ARQUIVO_AUTH, "w", encoding="utf-8") as f:
-        json.dump(lista, f, indent=2)
+        json.dump(lista, f, indent=2, ensure_ascii=False)
 
 def autorizar_servidor(guild_id):
     autorizados = carregar_autorizados()
@@ -44,7 +44,7 @@ def carregar_testes():
 
 def salvar_testes(dados):
     with open(ARQUIVO_TESTES, "w", encoding="utf-8") as f:
-        json.dump(dados, f, indent=2)
+        json.dump(dados, f, indent=2, ensure_ascii=False)
 
 def status_servidor(guild_id):
     """

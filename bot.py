@@ -4,7 +4,8 @@ import json
 import random
 import asyncio
 import aiohttp
-from datetime import datetime, timedelta
+import traceback
+from datetime import datetime, timedelta, timezone
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
 from auth import servidor_autorizado, status_servidor, carregar_autorizados, carregar_testes, salvar_testes
@@ -164,6 +165,39 @@ async def verificar_testes_expirando():
     if alterado:
         salvar_testes(testes)
 
+LOG_FILE = "logs.txt"
+
+def registrar_log(ctx):
+    agora = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    servidor = f"{ctx.guild.name} ({ctx.guild.id})" if ctx.guild else "DM"
+    usuario = f"{ctx.author} ({ctx.author.id})"
+    comando = ctx.message.content[:200]
+    linha = f"[{agora}] | Servidor: {servidor} | Usuário: {usuario} | Comando: {comando}\n"
+    try:
+        with open(LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(linha)
+    except Exception as e:
+        print(f"[LOG ERROR] {e}")
+
+@bot.event
+async def on_command(ctx):
+    registrar_log(ctx)
+
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.CheckFailure):
+        return  # já tratado pelo requer_acesso()
+    if isinstance(error, (commands.MissingRequiredArgument, commands.BadArgument)):
+        return  # erros de argumento são tratados por handlers individuais
+    if isinstance(error, commands.CommandNotFound):
+        return
+    tb = "".join(traceback.format_exception(type(error), error, error.__traceback__))
+    print(f"[ERRO GLOBAL] Comando: {ctx.command} | {type(error).__name__}: {error}\n{tb}")
+    try:
+        await ctx.send("❌ Ocorreu um erro inesperado. O bot continua funcionando normalmente.")
+    except Exception:
+        pass
+
 @bot.event
 async def on_ready():
     await bot.change_presence(activity=discord.Game(name=f"!ajuda | ValBot v{VERSAO}"))
@@ -310,8 +344,8 @@ async def on_message(message):
     # Stats: mensagens + dias seguidos
     stats = get_stats_user(uid)
     stats[uid]["mensagens"] += 1
-    hoje = datetime.utcnow().strftime("%Y-%m-%d")
-    ontem = (datetime.utcnow() - timedelta(days=1)).strftime("%Y-%m-%d")
+    hoje = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    ontem = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
     ult = stats[uid].get("ultimo_dia", "")
     if ult == hoje:
         pass
@@ -1025,7 +1059,7 @@ MISSOES = [
 async def missao(ctx):
     uid = str(ctx.author.id)
     # Missão diária baseada no dia + uid (assim cada user tem missão fixa do dia)
-    hoje = datetime.utcnow().strftime("%Y%m%d")
+    hoje = datetime.now(timezone.utc).strftime("%Y%m%d")
     seed = int(hoje) + sum(ord(c) for c in uid)
     random.seed(seed)
     m = random.choice(MISSOES)

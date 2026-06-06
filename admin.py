@@ -114,7 +114,7 @@ def carregar_testes():
 def salvar_testes(dados):
     caminho = os.path.join(BASE_DIR, ARQUIVO_TESTES)
     with open(caminho, "w", encoding="utf-8") as f:
-        json.dump(dados, f, indent=2)
+        json.dump(dados, f, indent=2, ensure_ascii=False)
 
 
 def iniciar_teste(servidor_id):
