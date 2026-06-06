@@ -215,12 +215,69 @@ def listar_testes():
     print()
 
 
+# ── Painel de urgência ────────────────────────────────────────────────────────
+
+def listar_expirando():
+    """
+    Mostra TODOS os servidores (testes + pagantes) ordenados por
+    tempo restante crescente — os mais urgentes aparecem primeiro.
+    """
+    agora    = datetime.now(timezone.utc)
+    entradas = []   # (label, dias_restantes_float, sid)
+
+    # Testes gratuitos
+    for sid, info in carregar_testes().items():
+        inicio = datetime.fromisoformat(info["inicio"])
+        if inicio.tzinfo is None:
+            inicio = inicio.replace(tzinfo=timezone.utc)
+        horas_rest = 72 - (agora - inicio).total_seconds() / 3600
+        entradas.append(("🧪 Teste",  horas_rest / 24, sid))
+
+    # Pagantes mensais
+    for sid, info in carregar_pagantes().items():
+        exp = datetime.fromisoformat(info["expiracao"])
+        if exp.tzinfo is None:
+            exp = exp.replace(tzinfo=timezone.utc)
+        dias_rest = (exp - agora).total_seconds() / 86400
+        entradas.append(("💳 Pagante", dias_rest, sid))
+
+    # Permanentes (sem expiração)
+    for sid in carregar_autorizados():
+        entradas.append(("♾️  Permanente", float("inf"), sid))
+
+    if not entradas:
+        print("\n   (nenhum servidor registrado)\n")
+        return
+
+    entradas.sort(key=lambda x: x[1])   # mais urgente primeiro
+
+    print("\n" + "─" * 60)
+    print(f"  {'TIPO':<14}  {'SERVIDOR':<22}  {'TEMPO RESTANTE'}")
+    print("─" * 60)
+    for label, dias, sid in entradas:
+        if dias == float("inf"):
+            tempo = "♾️  Permanente"
+        elif dias <= 0:
+            tempo = "❌ EXPIRADO"
+        elif dias < 1:
+            horas = dias * 24
+            tempo = f"⚠️  {round(horas, 1)}h  ← URGENTE"
+        elif dias <= 7:
+            tempo = f"⏳ {round(dias, 1)} dias  ← Avisar cliente"
+        else:
+            tempo = f"✅ {round(dias, 1)} dias"
+        print(f"  {label:<14}  {sid:<22}  {tempo}")
+    print("─" * 60 + "\n")
+
+
 # ── Menu ──────────────────────────────────────────────────────────────────────
 
 def mostrar_menu():
     print("\n" + "=" * 50)
     print("   🎮  ValBot — Painel Admin (Arca)")
     print("=" * 50)
+    print("  0. ⏰  Ver todos os servidores + tempo restante")
+    print("  ──────────────────────────────────────────────")
     print("  💳  ASSINATURA MENSAL")
     print("  1. Registrar pagamento (+1 mês)")
     print("  2. Listar pagantes")
@@ -244,7 +301,10 @@ def menu():
         mostrar_menu()
         opcao = input("Escolha uma opção: ").strip()
 
-        if opcao == "1":
+        if opcao == "0":
+            listar_expirando()
+
+        elif opcao == "1":
             sid = input("ID do servidor (registrar pagamento +1 mês): ").strip()
             if sid:
                 registrar_pagamento(sid)
@@ -293,7 +353,7 @@ def menu():
             break
 
         else:
-            print("⚠️  Opção inválida.")
+            print("⚠️  Opção inválida. Escolha 0–9.")
 
 
 if __name__ == "__main__":
