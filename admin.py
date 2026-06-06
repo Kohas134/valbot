@@ -1,121 +1,182 @@
 """
 admin.py — Painel administrativo local do ValBot (Arca)
 Roda apenas no computador do dono. Nunca suba este arquivo para o Railway.
-
-Ao autorizar ou desautorizar um servidor, o admin.py edita o autorizados.json
-e faz push automático para o GitHub — o Railway faz redeploy com a lista atualizada.
 """
 
 import json
 import os
 import subprocess
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
-ARQUIVO_AUTH = "autorizados.json"
-ARQUIVO_TESTES = "testes.json"
+ARQUIVO_AUTH     = "autorizados.json"
+ARQUIVO_TESTES   = "testes.json"
+ARQUIVO_PAGANTES = "pagantes.json"
 
-# Diretório onde este script está (raiz do repositório)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 # ── Utilitários de arquivo ────────────────────────────────────────────────────
 
-def carregar_autorizados():
-    caminho = os.path.join(BASE_DIR, ARQUIVO_AUTH)
-    if not os.path.exists(caminho):
-        return []
+def _caminho(nome):
+    return os.path.join(BASE_DIR, nome)
+
+def _ler_json(nome, padrao):
+    c = _caminho(nome)
+    if not os.path.exists(c):
+        return padrao
     try:
-        with open(caminho, "r", encoding="utf-8-sig") as f:
+        with open(c, "r", encoding="utf-8-sig") as f:
             conteudo = f.read().strip()
-            if not conteudo:
-                return []
-            return json.loads(conteudo)
+            return json.loads(conteudo) if conteudo else padrao
     except (json.JSONDecodeError, UnicodeDecodeError):
-        print("⚠️  autorizados.json corrompido — ignorando e recriando vazio.")
-        return []
+        print(f"⚠️  {nome} corrompido — recriando vazio.")
+        return padrao
+
+def _salvar_json(nome, dados):
+    with open(_caminho(nome), "w", encoding="utf-8", newline="\n") as f:
+        json.dump(dados, f, indent=2, ensure_ascii=False)
 
 
-def salvar_autorizados(lista):
-    caminho = os.path.join(BASE_DIR, ARQUIVO_AUTH)
-    with open(caminho, "w", encoding="utf-8", newline="\n") as f:
-        json.dump(lista, f, indent=2, ensure_ascii=False)
-
-
-def git_push_autorizados():
-    """Faz commit e push do autorizados.json para o GitHub."""
+def git_push(*arquivos):
+    """Faz commit e push dos arquivos informados."""
     print("  📤  Enviando para o GitHub...")
     try:
-        subprocess.run(
-            ["git", "add", ARQUIVO_AUTH],
-            cwd=BASE_DIR, check=True, capture_output=True
-        )
-        subprocess.run(
-            ["git", "commit", "-m", "atualiza servidores autorizados"],
-            cwd=BASE_DIR, check=True, capture_output=True
-        )
-        subprocess.run(
-            ["git", "push"],
-            cwd=BASE_DIR, check=True, capture_output=True
-        )
+        subprocess.run(["git", "add"] + list(arquivos),
+                       cwd=BASE_DIR, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "atualiza acesso de servidores"],
+                       cwd=BASE_DIR, check=True, capture_output=True)
+        subprocess.run(["git", "push"],
+                       cwd=BASE_DIR, check=True, capture_output=True)
         print("  ✅  Push feito! Railway vai atualizar automaticamente.\n")
     except subprocess.CalledProcessError as e:
-        print(f"  ⚠️  Erro no git: {e.stderr.decode().strip()}")
-        print("  → Faça o push manualmente: git add autorizados.json && git commit -m 'atualiza' && git push\n")
+        stderr = e.stderr.decode(errors="replace").strip()
+        print(f"  ⚠️  Erro no git: {stderr}")
+        print(f"  → Faça push manualmente: git add {' '.join(arquivos)} && git commit -m 'atualiza' && git push\n")
 
 
-# ── Servidores pagantes ───────────────────────────────────────────────────────
+# ── Permanentes ───────────────────────────────────────────────────────────────
 
-def autorizar_servidor(servidor_id):
+def carregar_autorizados():
+    return _ler_json(ARQUIVO_AUTH, [])
+
+def salvar_autorizados(lista):
+    _salvar_json(ARQUIVO_AUTH, lista)
+
+def autorizar_permanente(servidor_id):
     autorizados = carregar_autorizados()
     sid = str(servidor_id).strip()
     if sid in autorizados:
-        print(f"⚠️  Servidor {sid} já está autorizado.\n")
+        print(f"⚠️  Servidor {sid} já está permanente.\n")
         return
     autorizados.append(sid)
     salvar_autorizados(autorizados)
-    print(f"✅  Servidor {sid} adicionado ao autorizados.json.")
-    git_push_autorizados()
+    print(f"✅  Servidor {sid} autorizado permanentemente.")
+    git_push(ARQUIVO_AUTH)
 
-
-def desautorizar_servidor(servidor_id):
+def desautorizar_permanente(servidor_id):
     autorizados = carregar_autorizados()
     sid = str(servidor_id).strip()
     if sid not in autorizados:
-        print(f"⚠️  Servidor {sid} não encontrado na lista.\n")
+        print(f"⚠️  Servidor {sid} não está na lista permanente.\n")
         return
     autorizados.remove(sid)
     salvar_autorizados(autorizados)
-    print(f"❌  Servidor {sid} removido do autorizados.json.")
-    git_push_autorizados()
+    print(f"❌  Servidor {sid} removido da lista permanente.")
+    git_push(ARQUIVO_AUTH)
 
-
-def listar_servidores():
+def listar_permanentes():
     autorizados = carregar_autorizados()
-    print("\n📋  Servidores autorizados (pagantes):")
+    print("\n♾️   Servidores com acesso permanente (manual):")
     if not autorizados:
-        print("   (nenhum servidor na lista)")
+        print("   (nenhum)")
     else:
         for i, sid in enumerate(autorizados, 1):
             print(f"   {i}. {sid}")
-    print("\n🔒  Servidores gratuitos permanentes (hardcoded):")
+    print("\n🔒  Gratuitos hardcoded:")
     print("   • 1511754478913720410  (Arca Oficial)\n")
 
 
-# ── Testes gratuitos ─────────────────────────────────────────────────────────
+# ── Pagantes (assinatura mensal) ──────────────────────────────────────────────
+
+def carregar_pagantes():
+    return _ler_json(ARQUIVO_PAGANTES, {})
+
+def salvar_pagantes(dados):
+    _salvar_json(ARQUIVO_PAGANTES, dados)
+
+def registrar_pagamento(servidor_id):
+    """
+    Adiciona 30 dias ao servidor.
+    - Novo servidor   → expira em agora + 30 dias
+    - Renovação ativa → empilha 30 dias a partir da expiração atual
+    - Renovação após vencimento → expira em agora + 30 dias
+    """
+    pagantes = carregar_pagantes()
+    sid = str(servidor_id).strip()
+    agora = datetime.now(timezone.utc)
+
+    if sid in pagantes:
+        exp_atual = datetime.fromisoformat(pagantes[sid]["expiracao"])
+        if exp_atual.tzinfo is None:
+            exp_atual = exp_atual.replace(tzinfo=timezone.utc)
+        base = exp_atual if exp_atual > agora else agora
+        nova_exp = base + timedelta(days=30)
+        pagantes[sid]["expiracao"] = nova_exp.isoformat()
+        pagantes[sid]["aviso_enviado"] = False
+        dias_restantes = (nova_exp - agora).days
+        print(f"✅  +30 dias adicionados ao servidor {sid}.")
+        print(f"   Nova expiração: {nova_exp.strftime('%d/%m/%Y')} ({dias_restantes} dias restantes)\n")
+    else:
+        nova_exp = agora + timedelta(days=30)
+        pagantes[sid] = {
+            "expiracao": nova_exp.isoformat(),
+            "aviso_enviado": False,
+        }
+        print(f"✅  Servidor {sid} ativado com 30 dias.")
+        print(f"   Expira em: {nova_exp.strftime('%d/%m/%Y')}\n")
+
+    salvar_pagantes(pagantes)
+    git_push(ARQUIVO_PAGANTES)
+
+def remover_pagante(servidor_id):
+    pagantes = carregar_pagantes()
+    sid = str(servidor_id).strip()
+    if sid not in pagantes:
+        print(f"⚠️  Servidor {sid} não está na lista de pagantes.\n")
+        return
+    del pagantes[sid]
+    salvar_pagantes(pagantes)
+    print(f"❌  Servidor {sid} removido dos pagantes.")
+    git_push(ARQUIVO_PAGANTES)
+
+def listar_pagantes():
+    pagantes = carregar_pagantes()
+    print("\n💳  Servidores pagantes (assinatura mensal):")
+    if not pagantes:
+        print("   (nenhum)")
+        print()
+        return
+    agora = datetime.now(timezone.utc)
+    for i, (sid, info) in enumerate(pagantes.items(), 1):
+        exp = datetime.fromisoformat(info["expiracao"])
+        if exp.tzinfo is None:
+            exp = exp.replace(tzinfo=timezone.utc)
+        dias = (exp - agora).days
+        if dias > 0:
+            status = f"✅ Ativo — expira em {exp.strftime('%d/%m/%Y')} ({dias}d restantes)"
+        else:
+            status = f"❌ Expirado desde {exp.strftime('%d/%m/%Y')}"
+        print(f"   {i}. {sid}  |  {status}")
+    print()
+
+
+# ── Testes gratuitos ──────────────────────────────────────────────────────────
 
 def carregar_testes():
-    caminho = os.path.join(BASE_DIR, ARQUIVO_TESTES)
-    if os.path.exists(caminho):
-        with open(caminho, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {}
-
+    return _ler_json(ARQUIVO_TESTES, {})
 
 def salvar_testes(dados):
-    caminho = os.path.join(BASE_DIR, ARQUIVO_TESTES)
-    with open(caminho, "w", encoding="utf-8") as f:
-        json.dump(dados, f, indent=2, ensure_ascii=False)
-
+    _salvar_json(ARQUIVO_TESTES, dados)
 
 def iniciar_teste(servidor_id):
     testes = carregar_testes()
@@ -126,22 +187,21 @@ def iniciar_teste(servidor_id):
             inicio = inicio.replace(tzinfo=timezone.utc)
         horas = (datetime.now(timezone.utc) - inicio).total_seconds() / 3600
         if horas < 72:
-            restam = round(72 - horas, 1)
-            print(f"⚠️  Servidor {sid} já está em teste. Restam {restam}h.\n")
+            print(f"⚠️  Servidor {sid} já está em teste. Restam {round(72 - horas, 1)}h.\n")
             return
     testes[sid] = {
         "inicio": datetime.now(timezone.utc).isoformat(),
         "aviso_enviado": False,
     }
     salvar_testes(testes)
-    print(f"✅  Teste gratuito de 3 dias iniciado para o servidor {sid}!\n")
-
+    print(f"✅  Teste gratuito de 3 dias iniciado para {sid}!\n")
 
 def listar_testes():
     testes = carregar_testes()
-    print("\n🧪  Servidores em teste gratuito:")
+    print("\n🧪  Servidores em teste gratuito (3 dias):")
     if not testes:
-        print("   (nenhum servidor em teste)")
+        print("   (nenhum)")
+        print()
         return
     agora = datetime.now(timezone.utc)
     for i, (sid, info) in enumerate(testes.items(), 1):
@@ -155,21 +215,28 @@ def listar_testes():
     print()
 
 
-# ── Menu ─────────────────────────────────────────────────────────────────────
+# ── Menu ──────────────────────────────────────────────────────────────────────
 
 def mostrar_menu():
-    print("\n" + "=" * 45)
+    print("\n" + "=" * 50)
     print("   🎮  ValBot — Painel Admin (Arca)")
-    print("=" * 45)
-    print("  1. Autorizar servidor")
-    print("  2. Desautorizar servidor")
-    print("  3. Listar servidores autorizados")
-    print("  ─────────────────────────────────────────")
-    print("  5. Iniciar teste gratuito (3 dias)")
-    print("  6. Listar servidores em teste")
-    print("  ─────────────────────────────────────────")
-    print("  7. Sair")
-    print("=" * 45)
+    print("=" * 50)
+    print("  💳  ASSINATURA MENSAL")
+    print("  1. Registrar pagamento (+1 mês)")
+    print("  2. Listar pagantes")
+    print("  3. Remover pagante")
+    print("  ──────────────────────────────────────────────")
+    print("  ♾️   ACESSO PERMANENTE (manual)")
+    print("  4. Autorizar servidor permanente")
+    print("  5. Desautorizar servidor permanente")
+    print("  6. Listar servidores permanentes")
+    print("  ──────────────────────────────────────────────")
+    print("  🧪  TESTE GRATUITO (3 dias)")
+    print("  7. Iniciar teste gratuito")
+    print("  8. Listar servidores em teste")
+    print("  ──────────────────────────────────────────────")
+    print("  9. Sair")
+    print("=" * 50)
 
 
 def menu():
@@ -178,38 +245,55 @@ def menu():
         opcao = input("Escolha uma opção: ").strip()
 
         if opcao == "1":
-            sid = input("ID do servidor a autorizar: ").strip()
+            sid = input("ID do servidor (registrar pagamento +1 mês): ").strip()
             if sid:
-                autorizar_servidor(sid)
+                registrar_pagamento(sid)
             else:
                 print("⚠️  ID inválido.")
 
         elif opcao == "2":
-            sid = input("ID do servidor a desautorizar: ").strip()
+            listar_pagantes()
+
+        elif opcao == "3":
+            sid = input("ID do servidor a remover dos pagantes: ").strip()
             if sid:
-                desautorizar_servidor(sid)
+                remover_pagante(sid)
             else:
                 print("⚠️  ID inválido.")
 
-        elif opcao == "3":
-            listar_servidores()
+        elif opcao == "4":
+            sid = input("ID do servidor a autorizar permanentemente: ").strip()
+            if sid:
+                autorizar_permanente(sid)
+            else:
+                print("⚠️  ID inválido.")
 
         elif opcao == "5":
+            sid = input("ID do servidor a desautorizar: ").strip()
+            if sid:
+                desautorizar_permanente(sid)
+            else:
+                print("⚠️  ID inválido.")
+
+        elif opcao == "6":
+            listar_permanentes()
+
+        elif opcao == "7":
             sid = input("ID do servidor para iniciar o teste: ").strip()
             if sid:
                 iniciar_teste(sid)
             else:
                 print("⚠️  ID inválido.")
 
-        elif opcao == "6":
+        elif opcao == "8":
             listar_testes()
 
-        elif opcao == "7":
+        elif opcao == "9":
             print("👋  Saindo do painel admin.")
             break
 
         else:
-            print("⚠️  Opção inválida. Escolha 1, 2, 3, 5, 6 ou 7.")
+            print("⚠️  Opção inválida.")
 
 
 if __name__ == "__main__":

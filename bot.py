@@ -8,7 +8,9 @@ import traceback
 from datetime import datetime, timedelta, timezone
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
-from auth import servidor_autorizado, status_servidor, carregar_autorizados, carregar_testes, salvar_testes
+from auth import (servidor_autorizado, status_servidor, carregar_autorizados,
+                  carregar_testes, salvar_testes,
+                  carregar_pagantes, salvar_pagantes)
 from perguntas import perguntas_todas
 
 load_dotenv()
@@ -128,18 +130,30 @@ def requer_acesso():
             return True
         st = status_servidor(ctx.guild.id)
         if st == "expirado":
-            await ctx.send("❌ Seu período de teste de 3 dias encerrou. Para continuar usando o ValBot acesse: https://discord.gg/VKHG6MFh")
+            await ctx.send("❌ O acesso ao ValBot deste servidor expirou. Para renovar entre em contato: https://discord.gg/VKHG6MFh")
         else:
             await ctx.send("⚠️ Este servidor não tem acesso ao ValBot. Entre em contato: https://discord.gg/VKHG6MFh")
         return False
     return commands.check(predicate)
 
+async def _avisar_guild(sid, mensagem):
+    """Envia mensagem no primeiro canal disponível do servidor."""
+    guild = bot.get_guild(int(sid))
+    if not guild:
+        return
+    canal = next(
+        (c for c in guild.text_channels if c.permissions_for(guild.me).send_messages),
+        None
+    )
+    if canal:
+        await canal.send(mensagem)
+
 @tasks.loop(minutes=60)
-async def verificar_testes_expirando():
-    """A cada hora verifica se algum servidor em teste está a menos de 24h do fim."""
-    from datetime import datetime, timezone
+async def verificar_acessos_expirando():
+    """A cada hora verifica testes e assinaturas mensais prestes a expirar."""
+    # --- Testes gratuitos: avisa quando faltam < 24h (após 48h do início) ---
     testes = carregar_testes()
-    alterado = False
+    testes_alterado = False
     for sid, info in testes.items():
         if info.get("aviso_enviado"):
             continue
@@ -147,23 +161,37 @@ async def verificar_testes_expirando():
         if inicio.tzinfo is None:
             inicio = inicio.replace(tzinfo=timezone.utc)
         horas = (datetime.now(timezone.utc) - inicio).total_seconds() / 3600
-        if horas >= 48:  # passaram 48h → faltam menos de 24h
-            guild = bot.get_guild(int(sid))
-            if guild:
-                canal = next(
-                    (c for c in guild.text_channels
-                     if c.permissions_for(guild.me).send_messages),
-                    None
-                )
-                if canal:
-                    await canal.send(
-                        "⏰ Seu período de teste do ValBot está acabando! Faltam menos de 24h. "
-                        "Para continuar com acesso entre em contato: https://discord.gg/VKHG6MFh"
-                    )
+        if horas >= 48:
+            await _avisar_guild(
+                sid,
+                "⏰ Seu período de teste do ValBot está acabando! Faltam menos de 24h. "
+                "Para continuar com acesso entre em contato: https://discord.gg/VKHG6MFh"
+            )
             testes[sid]["aviso_enviado"] = True
-            alterado = True
-    if alterado:
+            testes_alterado = True
+    if testes_alterado:
         salvar_testes(testes)
+
+    # --- Assinaturas mensais: avisa quando faltam <= 7 dias ---
+    pagantes = carregar_pagantes()
+    pagantes_alterado = False
+    for sid, info in pagantes.items():
+        if info.get("aviso_enviado"):
+            continue
+        exp = datetime.fromisoformat(info["expiracao"])
+        if exp.tzinfo is None:
+            exp = exp.replace(tzinfo=timezone.utc)
+        dias_restantes = (exp - datetime.now(timezone.utc)).total_seconds() / 86400
+        if 0 < dias_restantes <= 7:
+            await _avisar_guild(
+                sid,
+                f"⏰ Sua assinatura do ValBot expira em **{int(dias_restantes)+1} dia(s)** "
+                f"({exp.strftime('%d/%m/%Y')}). Para renovar entre em contato: https://discord.gg/VKHG6MFh"
+            )
+            pagantes[sid]["aviso_enviado"] = True
+            pagantes_alterado = True
+    if pagantes_alterado:
+        salvar_pagantes(pagantes)
 
 LOG_FILE = "logs.txt"
 
@@ -203,8 +231,8 @@ async def on_ready():
     await bot.change_presence(activity=discord.Game(name=f"!ajuda | ValBot v{VERSAO}"))
     print(f"Bot ligado! Logado como {bot.user} | v{VERSAO}")
     print(f"Henrik Key carregada: {HENRIK_KEY[:15]}...")
-    if not verificar_testes_expirando.is_running():
-        verificar_testes_expirando.start()
+    if not verificar_acessos_expirando.is_running():
+        verificar_acessos_expirando.start()
 
 @bot.command()
 async def ping(ctx):
