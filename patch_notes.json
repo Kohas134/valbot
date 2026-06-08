@@ -3,56 +3,18 @@
     "versao": "2.1",
     "data": "2026-06-06",
     "mudancas": [
-      "Novo comando !info com estatísticas do servidor (XP, conquistas, times)",
+      "Novo comando !info — veja estatísticas do seu servidor",
       "Novo comando !rankglobal — Top 3 de todos os servidores combinados",
-      "!quiz agora mostra curiosidade temática ao errar a resposta",
-      "!rank exibe a posição #N do jogador no ranking global",
-      "!top mostra XP total acumulado e média por jogador",
-      "!conquistas agrupadas por dificuldade com barra de progresso",
-      "!duelo com embed épica e placar ao vivo no footer",
-      "!sorteio com timestamp dinâmico e embed festiva",
-      "Conquistas desbloqueadas com cor dourada e destaque visual",
-      "Level up agora usa embed em vez de texto simples",
-      "Cores exatas de rank Valorant (Iron, Bronze, Silver... Radiant)",
-      "Ícones oficiais de rank nos comandos !stats e !perfil",
-      "Footer com timestamp em todas as embeds",
-      "Sistema de assinatura mensal — acesso por 30 dias renovável",
-      "Admin: opção 0 mostra painel de urgência com tempo restante de cada servidor",
-      "Correção de todos os DeprecationWarnings (datetime.utcnow)",
-      "Sistema de logs automático em logs.txt",
-      "Handler global anti-crash — nenhuma exceção derruba o bot"
-    ]
-  },
-  {
-    "versao": "2.0",
-    "data": "2026-06-04",
-    "mudancas": [
-      "Banco de quiz expandido para 150 perguntas",
-      "Novo comando !stopquiz para cancelar quiz",
-      "Comando !perfil com dados reais da Henrik API",
-      "Sistema de personalização: !setagente, !setarma, !settitulo",
-      "Sistema de times: !criartime, !entrartime, !sairtime, !timelist, !timeinfo",
-      "Novo comando !duelo @user para quiz 1v1",
-      "Novo comando !missao com missões diárias",
-      "Novo comando !meta com top agentes do servidor",
-      "Novo comando !ajuda com guia completo",
-      "Sistema de 15 conquistas automáticas",
-      "Comando !patchnotes para ver atualizações",
-      "Visual melhorado com cores dinâmicas por rank",
-      "Barras de progresso estilizadas em todos os comandos"
-    ]
-  },
-  {
-    "versao": "1.0",
-    "data": "2026-05-01",
-    "mudancas": [
-      "Lançamento do ValBot",
-      "Quiz com 30 perguntas (+15 XP)",
-      "Sistema de XP, nível, !rank e !top",
-      "Sorteio com reação !sorteio",
-      "Stats reais via Henrik API !stats",
-      "Histórico de partidas !historico",
-      "Sistema de autorização por servidor"
+      "!quiz agora mostra uma curiosidade ao errar a resposta",
+      "!rank agora exibe sua posição #N no ranking global",
+      "!top agora mostra o XP total acumulado e a média por jogador",
+      "!conquistas agora é separado por dificuldade com barra de progresso",
+      "!duelo com placar ao vivo durante as perguntas",
+      "!sorteio com timer de encerramento e embed festiva",
+      "Visual redesenhado em todos os comandos com cores e layout melhorados",
+      "Ícones oficiais de rank do Valorant nos comandos !stats e !perfil",
+      "Conquistas desbloqueadas agora aparecem com destaque dourado",
+      "Level up agora aparece como uma notificação visual destacada"
     ]
   }
 ]

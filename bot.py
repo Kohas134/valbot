@@ -1409,19 +1409,14 @@ async def patchnotes(ctx):
     if not notas:
         await ctx.send("⚠️ Nenhuma atualização registrada.")
         return
+    nota = notas[0]  # sempre a versão atual (primeira entrada)
+    mudancas = "\n".join(f"• {m}" for m in nota.get("mudancas", []))
     embed = discord.Embed(
-        title="📜 Patch Notes ValBot",
-        description="Últimas atualizações do bot:",
+        title=f"📜 O que há de novo — v{nota['versao']}",
+        description=mudancas[:4000],
         color=COR_NEUTRO
     )
-    for nota in notas[:5]:
-        mudancas = "\n".join(f"• {m}" for m in nota.get("mudancas", []))
-        embed.add_field(
-            name=f"v{nota['versao']} — {nota['data']}",
-            value=mudancas[:1020] + ("..." if len(mudancas) > 1020 else ""),
-            inline=False
-        )
-    embed.set_footer(text=ft())
+    embed.set_footer(text=ft(f"Atualizado em {nota['data']}"))
     await ctx.send(embed=embed)
 
 # ============================================================
